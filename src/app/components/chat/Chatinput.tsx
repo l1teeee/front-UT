@@ -33,19 +33,26 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
 
     const fullText = getGreeting();
 
-    // Auto-resize textarea
+    // Auto-resize textarea con transición suave
     const adjustTextareaHeight = () => {
         if (textareaRef.current) {
+            // Resetear altura para calcular correctamente
             textareaRef.current.style.height = 'auto';
             const scrollHeight = textareaRef.current.scrollHeight;
-            const maxHeight = 120; // máximo 5 líneas aprox
+            const minHeight = 60; // altura mínima
+            const maxHeight = 120; // altura máxima
 
-            if (scrollHeight <= maxHeight) {
-                textareaRef.current.style.height = `${scrollHeight}px`;
-                textareaRef.current.style.overflowY = 'hidden';
-            } else {
-                textareaRef.current.style.height = `${maxHeight}px`;
+            // Calcular nueva altura
+            const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
+
+            // Aplicar altura con transición suave
+            textareaRef.current.style.height = `${newHeight}px`;
+
+            // Mostrar scrollbar solo si alcanza la altura máxima
+            if (scrollHeight > maxHeight) {
                 textareaRef.current.style.overflowY = 'auto';
+            } else {
+                textareaRef.current.style.overflowY = 'hidden';
             }
         }
     };
@@ -100,7 +107,16 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
         if (inputValue.trim()) {
             onSendMessage?.(inputValue);
             console.log('Mensaje enviado:', inputValue);
+
+            // Limpiar input con transición suave
             setInputValue('');
+
+            // Pequeño delay para permitir que la transición se complete
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = '60px'; // volver a altura mínima
+                }
+            }, 50);
         }
     };
 
@@ -146,10 +162,12 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
                     placeholder="escribe tu mensaje aquí..."
-                    className="w-full bg-zinc-900/50 border border-zinc-700/30 rounded-xl px-6 py-4 pr-14 text-white/90 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 backdrop-blur-sm transition-all duration-300 text-lg font-light tracking-wide resize-none min-h-[60px] leading-relaxed custom-scrollbar"
+                    className="w-full bg-zinc-900/50 border border-zinc-700/30 rounded-xl px-6 py-4 pr-14 text-white/90 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 backdrop-blur-sm text-lg font-light tracking-wide resize-none leading-relaxed custom-scrollbar transition-all duration-200 ease-out"
                     style={{
                         fontFamily: 'inherit',
-                        lineHeight: '1.5'
+                        lineHeight: '1.5',
+                        minHeight: '60px',
+                        height: '60px' // altura inicial fija
                     }}
                 />
 

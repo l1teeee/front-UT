@@ -2,25 +2,17 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import ChatInterface from '@/app/components/chat/ChatInterface';
 import ChatInput from '@/app/components/chat/Chatinput';
 import Sidebar from '@/app/components/chat/Sidebar';
 import NavigationBar from '@/app/components/chat/NavigationBar';
+import ChatModal from '@/app/components/chat/ChatModal';
 
 export default function DashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [hasStartedChat, setHasStartedChat] = useState(false);
+    const [chatModalOpen, setChatModalOpen] = useState(false);
     const [initialMessage, setInitialMessage] = useState('');
     const userInitial = 'U';
-
-    const handleSendMessage = (message: string) => {
-        console.log('Mensaje recibido:', message);
-        // Cuando se envía el primer mensaje, cambiar a modo chat
-        if (!hasStartedChat) {
-            setInitialMessage(message);
-            setHasStartedChat(true);
-        }
-    };
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -36,7 +28,24 @@ export default function DashboardPage() {
 
     const resetChat = () => {
         setHasStartedChat(false);
+        setChatModalOpen(false);
         setInitialMessage('');
+    };
+
+    const closeChatModal = () => {
+        setChatModalOpen(false);
+    };
+
+    const handleSendMessage = (message: string) => {
+        console.log('Mensaje recibido:', message);
+
+        // Primer mensaje - abrir modal
+        if (!hasStartedChat) {
+            setInitialMessage(message);
+            setHasStartedChat(true);
+            setChatModalOpen(true);
+            return;
+        }
     };
 
     return (
@@ -46,8 +55,9 @@ export default function DashboardPage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 1.2, ease: "easeOut" }}
         >
-            {/*{!hasStartedChat && <div className="light-effect"></div>}*/}
+            {!hasStartedChat && <div className="light-effect"></div>}
 
+            {/* Efectos de fondo animados */}
             <motion.div
                 className="absolute top-0 left-0 w-96 h-96 bg-zinc-900 rounded-full blur-3xl opacity-10"
                 style={{ zIndex: 0 }}
@@ -79,7 +89,7 @@ export default function DashboardPage() {
                 }}
             />
 
-            {/* <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} onNewChat={resetChat} />*/}
+            <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} onNewChat={resetChat} />
 
             <motion.div
                 className="flex-1 flex flex-col relative h-full overflow-hidden"
@@ -88,38 +98,31 @@ export default function DashboardPage() {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
             >
-                {/*<NavigationBar
+                <NavigationBar
                     sidebarOpen={sidebarOpen}
                     toggleSidebar={toggleSidebar}
                     handleUserButtonClick={handleUserButtonClick}
                     userInitial={userInitial}
-                />*/}
+                />
 
-                {!hasStartedChat ? (
-                    // Mostrar ChatInput centrado cuando no hay conversación
-                    <motion.div
-                        className="flex-1 flex items-center justify-center p-6"
-                        initial={{ y: 30, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-                    >
-                        <ChatInput onSendMessage={handleSendMessage} />
-                    </motion.div>
-                ) : (
-                    // Mostrar ChatInterface cuando ya hay conversación - ALTURA FIJA AQUÍ
-                    <motion.div
-                        className="flex-1 min-h-0 overflow-hidden"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <ChatInterface
-                            initialMessage={initialMessage}
-                            onSendMessage={handleSendMessage}
-                        />
-                    </motion.div>
-                )}
+                {/* Pantalla principal con ChatInput centrado */}
+                <motion.div
+                    className="flex-1 flex items-center justify-center p-6"
+                    initial={{ y: 30, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
+                >
+                    <ChatInput onSendMessage={handleSendMessage} />
+                </motion.div>
             </motion.div>
+
+            {/* Modal de Chat */}
+            <ChatModal
+                isOpen={chatModalOpen}
+                onClose={closeChatModal}
+                onReset={resetChat}
+                initialMessage={initialMessage}
+            />
         </motion.div>
     );
 }

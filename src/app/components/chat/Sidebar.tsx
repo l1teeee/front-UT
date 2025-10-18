@@ -4,9 +4,10 @@ import {X, Plus, MessageSquare, Settings, User, Zap, Sparkles} from 'lucide-reac
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
+    onNewChat?: () => void; // Prop opcional para nueva conversación
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onNewChat }: SidebarProps) {
     const conversations = [
         { id: 1, title: 'Conversación sobre React', time: '2h' },
         { id: 2, title: 'Ayuda con CSS', time: '1d' },
@@ -19,14 +20,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {/* Overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+                    className="fixed inset-0 bg-black/50 z-[9998] backdrop-blur-sm"
                     onClick={onClose}
                 />
             )}
 
-            {/* Sidebar - CLASES CORREGIDAS */}
+            {/* Sidebar - Z-INDEX MÁXIMO */}
             <div className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} 
-                fixed inset-y-0 left-0 z-50 w-64 
+                fixed inset-y-0 left-0 z-[9999] w-64 
                 bg-zinc-900/80 backdrop-blur-sm border-r border-zinc-800/50 
                 transform transition-transform duration-300 ease-in-out`}>
                 <div className="flex flex-col h-full">
@@ -40,7 +41,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         </div>
                         <button
                             onClick={onClose}
-                            className="text-white/50 hover:text-white"
+                            className="text-white/50 hover:text-white transition-colors"
                             aria-label="Cerrar menú"
                         >
                             <X size={20} />
@@ -49,7 +50,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                     {/* Botón nueva conversación */}
                     <div className="p-4">
-                        <button className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-white/80 px-3 py-2 rounded-lg transition-colors border border-white/10 backdrop-blur-sm shadow-md">
+                        <button
+                            onClick={onNewChat}
+                            className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-white/80 px-3 py-2 rounded-lg transition-colors border border-white/10 backdrop-blur-sm shadow-md"
+                        >
                             <Plus size={18} />
                             <span>nueva conversación</span>
                         </button>
@@ -61,7 +65,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             {conversations.map((conv) => (
                                 <div key={conv.id} className="p-3 hover:bg-white/5 rounded-lg cursor-pointer group backdrop-blur-sm transition-colors">
                                     <div className="flex items-center space-x-3">
-                                        <MessageSquare size={16} className="text-white/40 group-hover:text-white/70" />
+                                        <MessageSquare size={16} className="text-white/40 group-hover:text-white/70 transition-colors" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm text-white/80 truncate">{conv.title}</p>
                                             <p className="text-xs text-white/40">{conv.time}</p>
