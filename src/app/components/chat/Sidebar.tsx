@@ -1,19 +1,87 @@
-import React from 'react';
-import {X, Plus, MessageSquare, Settings, User, Sparkles} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {X, Plus, MessageSquare, User, Sparkles} from 'lucide-react';
+import localStorageService from '@/app/services/localStorageService';
 
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
-    onNewChat?: () => void; // Prop opcional para nueva conversación
+    onNewChat?: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose, onNewChat }: SidebarProps) {
-    const conversations = [
-        { id: 1, title: 'Conversación sobre React', time: '2h' },
-        { id: 2, title: 'Ayuda con CSS', time: '1d' },
-        { id: 3, title: 'Proyecto Next.js', time: '3d' },
-        { id: 4, title: 'Consulta sobre APIs', time: '1w' },
-    ];
+interface Conversation {
+    _id: string;
+    conversation_id: string;
+    title: string;
+    created_at: string;
+    updated_at: string;
+    message_count: number;
+    status: string;
+    uid: string;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const user = localStorageService.getUser();
+
+    // Obtener el nombre a mostrar
+    const displayName = user?.displayName || user?.email?.split('@')[0] || 'usuario';
+    const userEmail = user?.email || 'sin email';
+
+    // Función para obtener conversaciones de la API
+    const fetchConversations = async () => {
+        if (!user?.uid) {
+            setError('Usuario no autenticado');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(`http://localhost:5000/conversations?uid=${user.uid}`);
+            const data = await response.json();
+
+            if (data.success) {
+                setConversations(data.conversations || []);
+            } else {
+                setError(data.error || 'Error al cargar conversaciones');
+            }
+        } catch (err) {
+            console.error('Error fetching conversations:', err);
+            setError('Error de conexión con el servidor');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Cargar conversaciones cuando se abra el sidebar
+    useEffect(() => {
+        if (isOpen && user?.uid) {
+            fetchConversations();
+        }
+    }, [isOpen, user?.uid]);
+
+    // Función para formatear el tiempo relativo
+    const formatTimeAgo = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+        if (diffInMinutes < 1) return 'ahora';
+        if (diffInMinutes < 60) return `${diffInMinutes}m`;
+
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours < 24) return `${diffInHours}h`;
+
+        const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays < 7) return `${diffInDays}d`;
+
+        const diffInWeeks = Math.floor(diffInDays / 7);
+        return `${diffInWeeks}w`;
+    };
 
     return (
         <>
@@ -51,7 +119,7 @@ export default function Sidebar({ isOpen, onClose, onNewChat }: SidebarProps) {
                     {/* Botón nueva conversación */}
                     <div className="p-4">
                         <button
-                            onClick={onNewChat}
+                            onClick={onClose}
                             className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-white/80 px-3 py-2 rounded-lg transition-colors border border-white/10 backdrop-blur-sm shadow-md"
                         >
                             <Plus size={18} />
@@ -61,19 +129,53 @@ export default function Sidebar({ isOpen, onClose, onNewChat }: SidebarProps) {
 
                     {/* Lista de conversaciones */}
                     <div className="flex-1 overflow-y-auto px-4">
-                        <div className="space-y-2">
-                            {conversations.map((conv) => (
-                                <div key={conv.id} className="p-3 hover:bg-white/5 rounded-lg cursor-pointer group backdrop-blur-sm transition-colors">
-                                    <div className="flex items-center space-x-3">
-                                        <MessageSquare size={16} className="text-white/40 group-hover:text-white/70 transition-colors" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-white/80 truncate">{conv.title}</p>
-                                            <p className="text-xs text-white/40">{conv.time}</p>
+                        {loading && (
+                            <div className="flex items-center justify-center py-4">
+                                <div className="text-white/60 text-sm">Cargando conversaciones...</div>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="flex items-center justify-center py-4">
+                                <div className="text-red-400 text-sm text-center">{error}</div>
+                            </div>
+                        )}
+
+                        {!loading && !error && conversations.length === 0 && (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="text-white/40 text-sm text-center">
+                                    No hay conversaciones aún
+                                </div>
+                            </div>
+                        )}
+
+                        {!loading && !error && conversations.length > 0 && (
+                            <div className="space-y-2">
+                                {conversations.map((conv) => (
+                                    <div
+                                        key={conv.conversation_id}
+                                        className="p-3 hover:bg-white/5 rounded-lg cursor-pointer group backdrop-blur-sm transition-colors"
+                                    >
+                                        <div className="flex items-center space-x-3">
+                                            <MessageSquare size={16} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-white/80 truncate" title={conv.title}>
+                                                    {conv.title}
+                                                </p>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-xs text-white/40">
+                                                        {formatTimeAgo(conv.updated_at)}
+                                                    </p>
+                                                    <p className="text-xs text-white/30">
+                                                        {conv.message_count} mensajes
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer del sidebar */}
@@ -82,11 +184,10 @@ export default function Sidebar({ isOpen, onClose, onNewChat }: SidebarProps) {
                             <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
                                 <User size={16} className="text-white/70" />
                             </div>
-                            <div className="flex-1">
-                                <p className="text-sm text-white/80">julian</p>
-                                <p className="text-xs text-white/40">usuario</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white/80 truncate">{displayName}</p>
+                                <p className="text-xs text-white/40 truncate">{userEmail}</p>
                             </div>
-                            <Settings size={16} className="text-white/40 hover:text-white/70 cursor-pointer transition-colors" />
                         </div>
                     </div>
                 </div>

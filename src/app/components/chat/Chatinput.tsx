@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
+import localStorageService from '@/app/services/localStorageService';
 
 interface ChatInputProps {
     onSendMessage?: (message: string) => void;
@@ -16,11 +17,17 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Obtener datos del usuario autenticado
+    const user = localStorageService.getUser();
+
     const getGreeting = () => {
         const hour = new Date().getHours();
-        if (hour < 12) return 'buenos días, julian';
-        if (hour < 18) return 'buenas tardes, julian';
-        return 'buenas noches, julian';
+        // Usar displayName si existe, sino el email sin @dominio, sino 'usuario'
+        const userName = user?.displayName || user?.email?.split('@')[0] || 'usuario';
+        const name = userName.toLowerCase();
+        if (hour < 12) return `buenos días, ${name}`;
+        if (hour < 18) return `buenas tardes, ${name}`;
+        return `buenas noches, ${name}`;
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

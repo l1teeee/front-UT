@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Square, X, Minimize2 } from 'lucide-react';
+import localStorageService from '@/app/services/localStorageService';
 
 interface Message {
     id: string;
@@ -22,9 +23,14 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [conversationId, setConversationId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Obtener usuario del localStorage
+    const user = localStorageService.getUser();
 
     // Función para hacer scroll al final
     const scrollToBottom = () => {
@@ -47,7 +53,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
 
     // Efecto para manejar el mensaje inicial
     useEffect(() => {
-        if (initialMessage && messages.length === 0 && isOpen) {
+        if (initialMessage && messages.length === 0 && isOpen && user?.uid) {
             const userMessage: Message = {
                 id: Date.now().toString() + '_user',
                 text: initialMessage,
@@ -56,11 +62,9 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
             };
 
             setMessages([userMessage]);
-            setTimeout(() => {
-                simulateAIResponse();
-            }, 500);
+            sendToClaudeAPI(initialMessage);
         }
-    }, [initialMessage, isOpen, messages.length]);
+    }, [initialMessage, isOpen, messages.length, user?.uid]);
 
     // Resetear estado cuando se cierra el modal
     useEffect(() => {
@@ -68,6 +72,8 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
             setMessages([]);
             setInputValue('');
             setIsTyping(false);
+            setConversationId(null); // Nueva conversación cada vez que se abre
+            setError(null);
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
@@ -82,24 +88,80 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
         setIsTyping(false);
     };
 
-    const simulateAIResponse = () => {
-        setIsTyping(true);
+    const sendToClaudeAPI = async (message: string) => {
+        if (!user?.uid) {
+            setError('Usuario no autenticado');
+            return;
+        }
 
-        typingTimeoutRef.current = setTimeout(() => {
-            const aiMessage: Message = {
-                id: Date.now().toString() + '_ai',
-                text: "Hola, ¿en qué puedo ayudarte?",
-                sender: 'ai',
-                timestamp: new Date()
+        setIsTyping(true);
+        setError(null);
+
+        try {
+            const requestBody: any = {
+                uid: user.uid,
+                message: message
             };
 
-            setMessages(prev => [...prev, aiMessage]);
+            // Si ya tenemos una conversación, incluir el ID
+            if (conversationId) {
+                requestBody.conversation_id = conversationId;
+            }
+
+            console.log('Enviando a Claude API:', requestBody);
+
+            const response = await fetch('http://localhost:5000/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Guardar el conversation_id para mensajes futuros
+                if (data.conversation_id) {
+                    setConversationId(data.conversation_id);
+                }
+
+                // Agregar respuesta de Claude
+                const aiMessage: Message = {
+                    id: Date.now().toString() + '_ai',
+                    text: data.response,
+                    sender: 'ai',
+                    timestamp: new Date()
+                };
+
+                setMessages(prev => [...prev, aiMessage]);
+
+                console.log('Respuesta recibida de Claude:', {
+                    conversation_id: data.conversation_id,
+                    message_count: data.message_count,
+                    is_new_conversation: data.is_new_conversation
+                });
+
+            } else {
+                setError(data.error || 'Error al comunicarse con Claude');
+                console.error('Error de la API:', data.error);
+            }
+
+        } catch (error) {
+            console.error('Error enviando mensaje a Claude:', error);
+            setError('Error de conexión con el servidor');
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
     };
 
     const handleSendMessage = () => {
         if (!inputValue.trim()) return;
+
+        if (!user?.uid) {
+            setError('Usuario no autenticado');
+            return;
+        }
 
         const userMessage: Message = {
             id: Date.now().toString() + '_user',
@@ -109,8 +171,11 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
         };
 
         setMessages(prev => [...prev, userMessage]);
+        const messageToSend = inputValue;
         setInputValue('');
-        simulateAIResponse();
+
+        // Enviar a Claude API
+        sendToClaudeAPI(messageToSend);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -155,7 +220,14 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                     <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
                                         <span className="text-white text-sm font-bold">AI</span>
                                     </div>
-                                    <h2 className="text-white font-medium">Conversación con Claude</h2>
+                                    <div>
+                                        <h2 className="text-white font-medium">Conversación con Claude</h2>
+                                        {conversationId && (
+                                            <p className="text-xs text-zinc-400">
+                                                {messages.length > 0 ? 'Conversación activa' : 'Nueva conversación'}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <button
@@ -174,6 +246,13 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Error Message */}
+                            {error && (
+                                <div className="mx-4 mt-4 p-3 bg-red-900/50 border border-red-700/50 rounded-lg">
+                                    <p className="text-red-300 text-sm">{error}</p>
+                                </div>
+                            )}
 
                             {/* Área de Mensajes */}
                             <div className="flex-1 overflow-y-auto p-6">
@@ -242,8 +321,9 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                         onChange={(e) => setInputValue(e.target.value)}
                                         onKeyPress={handleKeyPress}
                                         onInput={handleTextareaResize}
-                                        placeholder="Escribe tu mensaje..."
-                                        className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none transition-all duration-200"
+                                        placeholder={user?.uid ? "Escribe tu mensaje..." : "Inicia sesión para chatear"}
+                                        disabled={!user?.uid || isTyping}
+                                        className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                         style={{
                                             lineHeight: '1.5',
                                             minHeight: '50px',
@@ -261,7 +341,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                             <Square size={16} />
                                         </button>
                                     ) : (
-                                        inputValue.trim() && (
+                                        inputValue.trim() && user?.uid && (
                                             <button
                                                 onClick={handleSendMessage}
                                                 className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors"
@@ -274,7 +354,10 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                 </div>
 
                                 <div className="text-xs text-zinc-500 mt-2 text-center">
-                                    Presiona Enter para enviar, Shift + Enter para nueva línea
+                                    {user?.uid ?
+                                        'Presiona Enter para enviar, Shift + Enter para nueva línea' :
+                                        'Debes iniciar sesión para usar el chat'
+                                    }
                                 </div>
                             </div>
                         </div>

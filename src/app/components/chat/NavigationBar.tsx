@@ -59,13 +59,6 @@ export default function NavigationBar({
                         <Folder size={18} />
                     </button>
 
-                    <button
-                        className="text-white/70 hover:text-white p-1.5 rounded-lg transition-colors duration-200"
-                        aria-label="Nuevo chat"
-                        title="Nuevo chat"
-                    >
-                        <Plus size={18} />
-                    </button>
                 </div>
 
                 <div className="relative" ref={menuRef}>
