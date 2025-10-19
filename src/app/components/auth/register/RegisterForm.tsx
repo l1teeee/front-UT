@@ -2,10 +2,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 import InputField from '../InputField';
 import ErrorMessage from '../ErrorMessage';
-import SubmitButton from '../SubmitButton';
+import SocialButtons from '@/app/components/auth/SocialButtons';
+import { registerUser } from '@/app/services/authService';
+import { validateRegistrationForm } from '@/app/utils/validations/Validations';
 
 export default function RegisterForm() {
     const [name, setName] = useState('');
@@ -14,46 +16,50 @@ export default function RegisterForm() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
-    const handleSubmit = (e: { preventDefault: () => void; }) => {
+    const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement> | React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
+        setIsSuccess(false);
 
-        setTimeout(() => {
-            if (!name || !email || !password || !confirmPassword) {
-                setError('todos los campos son requeridos');
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                setError('email inválido');
-            } else if (password.length < 6) {
-                setError('contraseña debe tener al menos 6 caracteres');
-            } else if (password !== confirmPassword) {
-                setError('las contraseñas no coinciden');
-            } else {
-                alert('✓ registro exitoso');
+        try {
+            const validationError = validateRegistrationForm({
+                name,
+                email,
+                password,
+                confirmPassword
+            });
+
+            if (validationError) {
+                setError(validationError);
+                return;
+            }
+            const response = await registerUser(name, email, password);
+            console.log('Registro exitoso:', response);
+            setIsSuccess(true);
+            setTimeout(() => {
                 setName('');
                 setEmail('');
                 setPassword('');
                 setConfirmPassword('');
-            }
+                setIsSuccess(false);
+
+            }, 2000);
+        } catch (error: any) {
+            console.error('Error en registro:', error);
+            setError(error.message || 'Error al registrar usuario');
+        } finally {
             setIsLoading(false);
-        }, 500);
+        }
     };
 
     return (
         <div className="backdrop-blur-sm bg-black/40 border border-zinc-800/90 rounded-lg p-6 shadow-2xl">
             <div className="text-xs text-zinc-500 mb-5">registro</div>
 
-            <div className="space-y-4">
-                <InputField
-                    icon={User}
-                    label="nombre"
-                    type="text"
-                    placeholder="tu nombre completo"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                />
-
+            <form onSubmit={handleSubmit} className="space-y-4">
                 <InputField
                     icon={Mail}
                     label="email"
@@ -82,8 +88,23 @@ export default function RegisterForm() {
                 />
 
                 <ErrorMessage error={error} />
-                <SubmitButton isLoading={isLoading} onClick={handleSubmit} />
-            </div>
+
+                <div>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isLoading || isSuccess}
+                        type="submit"
+                        className={`w-full mt-5 px-3 py-2 text-xs font-medium border transition-all disabled:cursor-not-allowed rounded-sm ${
+                            isSuccess
+                                ? 'border-green-600 bg-green-600 text-white'
+                                : 'border-zinc-700 bg-gradient-to-r from-zinc-900 to-black text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 hover:shadow-lg disabled:opacity-50'
+                        }`}
+                    >
+                        {isLoading ? '⟳ procesando...' : isSuccess ? '✓ registrado' : '→ registrar'}
+                    </button>
+                    <SocialButtons />
+                </div>
+            </form>
         </div>
     );
 }

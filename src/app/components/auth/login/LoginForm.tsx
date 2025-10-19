@@ -1,3 +1,4 @@
+// components/auth/LoginForm.js
 'use client';
 
 import { useState } from 'react';
@@ -5,53 +6,53 @@ import { Mail, Lock } from 'lucide-react';
 import InputField from '../InputField';
 import ErrorMessage from '../ErrorMessage';
 import SocialButtons from '@/app/components/auth/SocialButtons';
-import { AuthService, AuthError } from '@/app/services/authService';
+import { loginUser } from '@/app/services/authService';
+import { validateLoginForm } from '@/app/utils/validations/Validations';
+import localStorageService from '@/app/services/localStorageService';
+import { useNavigation } from '@/app/hook/useNavigation';
+
 
 export default function LoginForm() {
+    const { goToDashboard } = useNavigation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
-    const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement> | React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
+        setIsSuccess(false);
 
         try {
-            // Validaciones básicas del lado cliente
-            if (!email || !password) {
-                setError('Campos requeridos');
+            const validationError = validateLoginForm({ email, password });
+            if (validationError) {
+                setError(validationError);
                 return;
             }
-
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                setError('Email inválido');
-                return;
+            const response = await loginUser(email, password);
+            console.log('Login exitoso:', response);
+            setIsSuccess(true);
+            if (response.data) {
+                localStorageService.saveLoginData(
+                    response.data,
+                    response.data.customToken
+                );
+                console.log('Datos guardados con localStorage service:', localStorageService.getStorageInfo());
             }
 
-            // Llamar al servicio de login
-            const response = await AuthService.login(email, password);
+            setTimeout(() => {
+                setEmail('');
+                setPassword('');
+                setIsSuccess(false);
+                goToDashboard();
+            }, 2000);
 
-            // Login exitoso
-            console.log('🎉 Respuesta del servidor:', response);
-            alert(`✓ Login exitoso para: ${response.correo}`);
-
-            // Limpiar el formulario
-            setEmail('');
-            setPassword('');
-
-        } catch (error) {
-            if (error instanceof AuthError) {
-                // Error de la API
-                const errorMessage = error.detalles || error.message;
-                setError(errorMessage);
-                console.error('Error de login:', error);
-            } else {
-                // Error inesperado
-                setError('Error inesperado. Intenta de nuevo.');
-                console.error('Error inesperado:', error);
-            }
+        } catch (error: any) {
+            console.error('Error en login:', error);
+            setError(error.message || 'Error al iniciar sesión');
         } finally {
             setIsLoading(false);
         }
@@ -61,7 +62,7 @@ export default function LoginForm() {
         <div className="backdrop-blur-sm bg-black/40 border border-zinc-800/90 rounded-lg p-6 shadow-2xl">
             <div className="text-xs text-zinc-500 mb-5">login</div>
 
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
                 <InputField
                     icon={Mail}
                     label="email"
@@ -85,14 +86,19 @@ export default function LoginForm() {
                 <div>
                     <button
                         onClick={handleSubmit}
-                        disabled={isLoading}
-                        className="w-full mt-5 px-3 py-2 text-xs font-medium border border-zinc-700 bg-gradient-to-r from-zinc-900 to-black text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-sm"
+                        disabled={isLoading || isSuccess}
+                        type="submit"
+                        className={`w-full mt-5 px-3 py-2 text-xs font-medium border transition-all disabled:cursor-not-allowed rounded-sm ${
+                            isSuccess
+                                ? 'border-green-600 bg-green-600 text-white'
+                                : 'border-zinc-700 bg-gradient-to-r from-zinc-900 to-black text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 hover:shadow-lg disabled:opacity-50'
+                        }`}
                     >
-                        {isLoading ? '⟳ procesando...' : '→ acceder'}
+                        {isLoading ? '⟳ procesando...' : isSuccess ? '✓ correcto' : '→ acceder'}
                     </button>
                     <SocialButtons />
                 </div>
-            </div>
+            </form>
         </div>
     );
 }
