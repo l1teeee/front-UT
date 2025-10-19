@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Square, X, Minimize2 } from 'lucide-react';
 import localStorageService from '@/app/services/localStorageService';
@@ -12,12 +12,25 @@ interface Message {
     timestamp: Date;
 }
 
+interface APIMessage {
+    id?: string;
+    content: string;
+    role: 'user' | 'assistant';
+    timestamp: string;
+}
+
+interface ChatRequestBody {
+    uid: string;
+    message: string;
+    conversation_id?: string;
+}
+
 interface ChatModalProps {
     isOpen: boolean;
     onClose: () => void;
     onReset: () => void;
     initialMessage?: string;
-    existingConversationId?: string; // Nueva prop para cargar conversación existente
+    existingConversationId?: string;
 }
 
 export default function ChatModal({ isOpen, onClose, onReset, initialMessage, existingConversationId }: ChatModalProps) {
@@ -39,22 +52,8 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage, ex
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    // Efecto para hacer scroll cuando hay nuevos mensajes
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    // Cleanup del timeout al desmontar
-    useEffect(() => {
-        return () => {
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
-        };
-    }, []);
-
-    // Función para cargar conversación existente
-    const loadExistingConversation = async (convId: string) => {
+    // Función para cargar conversación existente con useCallback
+    const loadExistingConversation = useCallback(async (convId: string) => {
         if (!user?.uid) {
             setError('Usuario no autenticado');
             return;
@@ -74,12 +73,22 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage, ex
                 setConversationId(convId);
 
                 // Convertir mensajes al formato del modal
-                const loadedMessages: Message[] = conversation.messages.map((msg: any) => ({
-                    id: msg.id || `${msg.timestamp}_${msg.role}`,
-                    text: msg.content,
-                    sender: msg.role === 'user' ? 'user' as const : 'ai' as const,
-                    timestamp: new Date(msg.timestamp)
-                }));
+                const loadedMessages: Message[] = conversation.messages.map((msg: unknown) => {
+                    if (typeof msg === 'object' && msg !== null &&
+                        'content' in msg && 'role' in msg && 'timestamp' in msg) {
+
+                        const message = msg as APIMessage;
+
+                        return {
+                            id: message.id || `${message.timestamp}_${message.role}`,
+                            text: message.content,
+                            sender: message.role === 'user' ? 'user' as const : 'ai' as const,
+                            timestamp: new Date(message.timestamp)
+                        };
+                    }
+
+                    throw new Error('Invalid message format');
+                });
 
                 setMessages(loadedMessages);
                 console.log('Conversación cargada:', {
@@ -98,54 +107,10 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage, ex
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.uid]);
 
-    // Efecto para manejar conversación existente o mensaje inicial
-    useEffect(() => {
-        if (!isOpen) return;
-
-        // Si hay una conversación existente para cargar
-        if (existingConversationId && user?.uid) {
-            loadExistingConversation(existingConversationId);
-        }
-        // Si hay un mensaje inicial para nueva conversación
-        else if (initialMessage && messages.length === 0 && user?.uid && !existingConversationId) {
-            const userMessage: Message = {
-                id: Date.now().toString() + '_user',
-                text: initialMessage,
-                sender: 'user',
-                timestamp: new Date()
-            };
-
-            setMessages([userMessage]);
-            sendToClaudeAPI(initialMessage);
-        }
-    }, [existingConversationId, initialMessage, isOpen, user?.uid]);
-
-    // Resetear estado cuando se cierra el modal
-    useEffect(() => {
-        if (!isOpen) {
-            setMessages([]);
-            setInputValue('');
-            setIsTyping(false);
-            setConversationId(null);
-            setError(null);
-            setLoading(false);
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
-        }
-    }, [isOpen]);
-
-    const stopAIResponse = () => {
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-            typingTimeoutRef.current = null;
-        }
-        setIsTyping(false);
-    };
-
-    const sendToClaudeAPI = async (message: string) => {
+    // Función para enviar mensaje a Claude con useCallback
+    const sendToClaudeAPI = useCallback(async (message: string) => {
         if (!user?.uid) {
             setError('Usuario no autenticado');
             return;
@@ -155,7 +120,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage, ex
         setError(null);
 
         try {
-            const requestBody: any = {
+            const requestBody: ChatRequestBody = {
                 uid: user.uid,
                 message: message
             };
@@ -210,6 +175,65 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage, ex
         } finally {
             setIsTyping(false);
         }
+    }, [user?.uid, conversationId]);
+
+    // Efecto para hacer scroll cuando hay nuevos mensajes
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // Cleanup del timeout al desmontar
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    // Efecto para manejar conversación existente o mensaje inicial
+    useEffect(() => {
+        if (!isOpen) return;
+
+        // Si hay una conversación existente para cargar
+        if (existingConversationId && user?.uid) {
+            loadExistingConversation(existingConversationId);
+        }
+        // Si hay un mensaje inicial para nueva conversación
+        else if (initialMessage && messages.length === 0 && user?.uid && !existingConversationId) {
+            const userMessage: Message = {
+                id: Date.now().toString() + '_user',
+                text: initialMessage,
+                sender: 'user',
+                timestamp: new Date()
+            };
+
+            setMessages([userMessage]);
+            sendToClaudeAPI(initialMessage);
+        }
+    }, [existingConversationId, initialMessage, isOpen, user?.uid, messages.length, loadExistingConversation, sendToClaudeAPI]);
+
+    // Resetear estado cuando se cierra el modal
+    useEffect(() => {
+        if (!isOpen) {
+            setMessages([]);
+            setInputValue('');
+            setIsTyping(false);
+            setConversationId(null);
+            setError(null);
+            setLoading(false);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        }
+    }, [isOpen]);
+
+    const stopAIResponse = () => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+        setIsTyping(false);
     };
 
     const handleSendMessage = () => {

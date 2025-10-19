@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Folder, Plus } from 'lucide-react';
+import { Folder } from 'lucide-react';
 import { useNavigation } from '@/app/hook/useNavigation';
 import localStorageService from '@/app/services/localStorageService';
 

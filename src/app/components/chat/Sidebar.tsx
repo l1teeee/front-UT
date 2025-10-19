@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {X, Plus, MessageSquare, User, Sparkles} from 'lucide-react';
 import localStorageService from '@/app/services/localStorageService';
 
@@ -6,7 +6,7 @@ interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
     onNewChat?: () => void;
-    onSelectConversation?: (conversationId: string) => void; // Nueva prop
+    onSelectConversation?: (conversationId: string) => void;
 }
 
 interface Conversation {
@@ -31,8 +31,8 @@ export default function Sidebar({ isOpen, onClose, onNewChat, onSelectConversati
     const displayName = user?.displayName || user?.email?.split('@')[0] || 'usuario';
     const userEmail = user?.email || 'sin email';
 
-    // Función para obtener conversaciones de la API
-    const fetchConversations = async () => {
+    // Función para obtener conversaciones de la API con useCallback
+    const fetchConversations = useCallback(async () => {
         if (!user?.uid) {
             setError('Usuario no autenticado');
             return;
@@ -56,14 +56,14 @@ export default function Sidebar({ isOpen, onClose, onNewChat, onSelectConversati
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.uid]);
 
     // Cargar conversaciones cuando se abra el sidebar
     useEffect(() => {
         if (isOpen && user?.uid) {
             fetchConversations();
         }
-    }, [isOpen, user?.uid]);
+    }, [isOpen, user?.uid, fetchConversations]);
 
     // Función para formatear el tiempo relativo
     const formatTimeAgo = (dateString: string) => {
