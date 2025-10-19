@@ -1,3 +1,4 @@
+// app/pages/dashboard/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -6,13 +7,18 @@ import ChatInput from '@/app/components/chat/Chatinput';
 import Sidebar from '@/app/components/chat/Sidebar';
 import NavigationBar from '@/app/components/chat/NavigationBar';
 import ChatModal from '@/app/components/chat/ChatModal';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
+import localStorageService from '@/app/services/localStorageService';
 
-export default function DashboardPage() {
+function DashboardContent() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [hasStartedChat, setHasStartedChat] = useState(false);
     const [chatModalOpen, setChatModalOpen] = useState(false);
     const [initialMessage, setInitialMessage] = useState('');
-    const userInitial = 'U';
+
+    // Obtener datos del usuario autenticado
+    const user = localStorageService.getUser();
+    const userInitial = user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -23,7 +29,8 @@ export default function DashboardPage() {
     };
 
     const handleUserButtonClick = () => {
-        console.log('Botón de usuario presionado');
+        console.log('Botón de usuario presionado', user);
+        // Aquí podrías abrir un menú de usuario, mostrar perfil, etc.
     };
 
     const resetChat = () => {
@@ -124,5 +131,28 @@ export default function DashboardPage() {
                 initialMessage={initialMessage}
             />
         </motion.div>
+    );
+}
+
+export default function DashboardPage() {
+    return (
+        <ProtectedRoute
+            requireAuth={true}
+            redirectTo="/pages/login"
+            loadingComponent={
+                <div className="h-screen bg-black flex items-center justify-center">
+                    <div className="text-center">
+                        <motion.div
+                            className="w-8 h-8 border-2 border-zinc-600 border-t-white rounded-full mx-auto mb-4"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                        <p className="text-zinc-400 text-sm font-mono">verificando autenticación...</p>
+                    </div>
+                </div>
+            }
+        >
+            <DashboardContent />
+        </ProtectedRoute>
     );
 }

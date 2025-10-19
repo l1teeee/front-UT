@@ -1,4 +1,6 @@
 // authService.ts
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth } from '@/app/lib/firebase'; // Necesitas crear este archivo
 import { RegisterResponse, LoginResponse } from '@/app/types/auth';
 
 export const registerUser = async (
@@ -6,55 +8,133 @@ export const registerUser = async (
     email: string,
     password: string
 ): Promise<RegisterResponse> => {
-    const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            email: email,
-            password: password,
+    try {
+        // Crear usuario con Firebase Client SDK (esto SÍ valida todo)
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Actualizar el nombre del usuario
+        await updateProfile(user, {
             displayName: name
-        }),
-    });
+        });
 
-    const data: RegisterResponse = await response.json();
+        // Obtener el token para el backend y localStorage
+        const idToken = await user.getIdToken();
 
-    if (!response.ok) {
-        throw new Error(data.message || 'Error en el registro');
+        // Retornar datos del usuario creado con token
+        return {
+            success: true,
+            message: "Usuario registrado exitosamente",
+            data: {
+                uid: user.uid,
+                email: user.email || '',
+                displayName: user.displayName || name,
+                emailVerified: user.emailVerified,
+                customToken: idToken,
+                createdAt: user.metadata.creationTime || new Date().toISOString()
+            }
+        };
+
+    } catch (error: any) {
+        console.error('Error en registro:', error);
+
+        // Manejar errores específicos de Firebase
+        let errorMessage = 'Error en el registro';
+
+        if (error.code) {
+            switch (error.code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = 'Este email ya está registrado';
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = 'La contraseña es muy débil';
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = 'Email inválido';
+                    break;
+                case 'auth/operation-not-allowed':
+                    errorMessage = 'Registro con email/contraseña no habilitado';
+                    break;
+                default:
+                    errorMessage = error.message || errorMessage;
+            }
+        }
+
+        throw new Error(errorMessage);
     }
-
-    if (!data.success) {
-        throw new Error(data.message || 'Error en el registro');
-    }
-
-    return data;
 };
 
 export const loginUser = async (
     email: string,
     password: string
-): Promise<LoginResponse> => {
-    const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            email: email,
-            password: password
-        }),
-    });
-
-    const data: LoginResponse = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.message || 'Error en el login');
+): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+        uid: string;
+        email: string;
+        displayName: string | null;
+        emailVerified: boolean;
+        customToken: string;
+        lastSignInTime: string;
+        creationTime: string
     }
+}> => {
+    try {
+        // AUTENTICACIÓN REAL con Firebase Client SDK
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-    if (!data.success) {
-        throw new Error(data.message || 'Error en el login');
+        // Obtener token de autenticación
+        const idToken = await user.getIdToken();
+
+
+        // Retornar datos del usuario autenticado
+        return {
+            success: true,
+            message: "Login exitoso",
+            data: {
+                uid: user.uid,
+                email: user.email || '',
+                displayName: user.displayName,
+                emailVerified: user.emailVerified,
+                customToken: idToken,
+                lastSignInTime: user.metadata.lastSignInTime || new Date().toISOString(),
+                creationTime: user.metadata.creationTime || new Date().toISOString()
+            }
+        };
+
+    } catch (error: any) {
+        console.error('Error en login:', error);
+
+        // Manejar errores específicos de Firebase
+        let errorMessage = 'Error al iniciar sesión';
+
+        if (error.code) {
+            switch (error.code) {
+                case 'auth/wrong-password':
+                    errorMessage = 'Contraseña incorrecta';
+                    break;
+                case 'auth/user-not-found':
+                    errorMessage = 'Usuario no encontrado';
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = 'Email inválido';
+                    break;
+                case 'auth/user-disabled':
+                    errorMessage = 'La cuenta está deshabilitada';
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = 'Demasiados intentos. Intenta más tarde';
+                    break;
+                case 'auth/network-request-failed':
+                    errorMessage = 'Error de conexión. Verifica tu internet';
+                    break;
+                default:
+                    errorMessage = error.message || errorMessage;
+            }
+        }
+
+        throw new Error(errorMessage);
     }
-
-    return data;
 };

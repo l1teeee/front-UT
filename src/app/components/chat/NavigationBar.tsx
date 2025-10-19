@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Folder, Plus, Bell, Settings, User, ChevronRight } from 'lucide-react';
 import { useNavigation } from '@/app/hook/useNavigation';
+import localStorageService from '@/app/services/localStorageService';
 
 interface NavigationBarProps {
     sidebarOpen: boolean;
@@ -17,7 +18,10 @@ export default function NavigationBar({
                                       }: NavigationBarProps) {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
-    const { goHome } = useNavigation();
+    const { goToLogin } = useNavigation();
+
+    // Obtener datos del usuario autenticado
+    const user = localStorageService.getUser();
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -34,6 +38,13 @@ export default function NavigationBar({
 
     const toggleUserMenu = () => {
         setUserMenuOpen(!userMenuOpen);
+    };
+
+    const handleLogout = () => {
+        console.log('Cerrando sesión...');
+        localStorageService.logout();
+        setUserMenuOpen(false);
+        goToLogin();
     };
 
     return (
@@ -69,28 +80,37 @@ export default function NavigationBar({
                     </button>
 
                     {userMenuOpen && (
-                        <div className="absolute bottom-0 left-12 w-56 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg shadow-xl shadow-black/30 py-2">
+                        <div className="absolute bottom-0 left-12 w-64 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-lg shadow-xl shadow-black/30 py-2">
                             {/* Header del menú */}
                             <div className="px-4 py-3 border-b border-zinc-700/50">
                                 <div className="flex items-center space-x-3">
                                     <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
-                                        <User size={16} className="text-white/70" />
+                                        <span className="text-white/90 text-sm font-medium">
+                                            {userInitial}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <p className="text-sm text-white/90 font-medium">desarrollo@ukiyo.sv</p>
+                                    <div className="flex-1 min-w-0">
+                                        {user?.displayName && (
+                                            <p className="text-sm text-white/90 font-medium truncate">
+                                                {user.displayName}
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-white/60 truncate">
+                                            {user?.email || 'Sin email'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Opción de cerrar sesión */}
+
+                            {/* Opciones del menú */}
                             <div className="py-1">
+
+                                <div className="border-t border-zinc-700/50 my-1"></div>
+
                                 <button
-                                    className="w-full flex items-center px-4 py-3 text-sm text-white/80 hover:bg-white/5 transition-colors"
-                                    onClick={() => {
-                                        console.log('Cerrar sesión');
-                                        setUserMenuOpen(false);
-                                        goHome();
-                                    }}
+                                    className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                    onClick={handleLogout}
                                 >
                                     <span>Cerrar sesión</span>
                                 </button>

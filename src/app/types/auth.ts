@@ -2,6 +2,7 @@ export interface RegisterResponse {
     success: boolean;
     message: string;
     data?: {
+        customToken: string;
         uid: string;
         email: string;
         displayName?: string;

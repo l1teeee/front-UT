@@ -11,7 +11,6 @@ import { validateLoginForm } from '@/app/utils/validations/Validations';
 import localStorageService from '@/app/services/localStorageService';
 import { useNavigation } from '@/app/hook/useNavigation';
 
-
 export default function LoginForm() {
     const { goToDashboard } = useNavigation();
     const [email, setEmail] = useState('');
@@ -27,22 +26,30 @@ export default function LoginForm() {
         setIsSuccess(false);
 
         try {
+            // Validaciones usando la función de validación
             const validationError = validateLoginForm({ email, password });
             if (validationError) {
                 setError(validationError);
                 return;
             }
+
+            // Llamar al authService con Firebase Client SDK (autenticación REAL)
             const response = await loginUser(email, password);
-            console.log('Login exitoso:', response);
+
+            console.log('Login exitoso con Firebase Client SDK:', response);
             setIsSuccess(true);
+
+            // Guardar datos usando el localStorage service
             if (response.data) {
                 localStorageService.saveLoginData(
                     response.data,
                     response.data.customToken
                 );
-                console.log('Datos guardados con localStorage service:', localStorageService.getStorageInfo());
+
+                console.log('Datos guardados en localStorage:', localStorageService.getStorageInfo());
             }
 
+            // Limpiar formulario y redirigir después de 2 segundos
             setTimeout(() => {
                 setEmail('');
                 setPassword('');

@@ -2,12 +2,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, User } from 'lucide-react';
 import InputField from '../InputField';
 import ErrorMessage from '../ErrorMessage';
 import SocialButtons from '@/app/components/auth/SocialButtons';
 import { registerUser } from '@/app/services/authService';
 import { validateRegistrationForm } from '@/app/utils/validations/Validations';
+import localStorageService from '@/app/services/localStorageService';
 
 export default function RegisterForm() {
     const [name, setName] = useState('');
@@ -25,6 +26,7 @@ export default function RegisterForm() {
         setIsSuccess(false);
 
         try {
+            // Validaciones usando la función de validación
             const validationError = validateRegistrationForm({
                 name,
                 email,
@@ -36,9 +38,24 @@ export default function RegisterForm() {
                 setError(validationError);
                 return;
             }
+
+            // Usar el authService con Firebase Client SDK
             const response = await registerUser(name, email, password);
+
             console.log('Registro exitoso:', response);
             setIsSuccess(true);
+
+            // Guardar datos usando el localStorage service
+            if (response.data) {
+                localStorageService.saveLoginData(
+                    response.data,
+                    response.data.customToken
+                );
+
+                console.log('Datos guardados en localStorage:', localStorageService.getStorageInfo());
+            }
+
+            // Limpiar el formulario después de 2 segundos
             setTimeout(() => {
                 setName('');
                 setEmail('');
@@ -46,7 +63,10 @@ export default function RegisterForm() {
                 setConfirmPassword('');
                 setIsSuccess(false);
 
+                // Opcional: Redirigir al dashboard o login
+                // window.location.href = '/dashboard';
             }, 2000);
+
         } catch (error: any) {
             console.error('Error en registro:', error);
             setError(error.message || 'Error al registrar usuario');
@@ -60,6 +80,15 @@ export default function RegisterForm() {
             <div className="text-xs text-zinc-500 mb-5">registro</div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+                <InputField
+                    icon={User}
+                    label="nombre"
+                    type="text"
+                    placeholder="tu nombre completo"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                />
+
                 <InputField
                     icon={Mail}
                     label="email"
