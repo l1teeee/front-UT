@@ -1,5 +1,5 @@
 import React from 'react';
-import {X, Plus, MessageSquare, Settings, User, Zap, Sparkles} from 'lucide-react';
+import {X, Plus, MessageSquare, Settings, User, Sparkles} from 'lucide-react';
 
 interface SidebarProps {
     isOpen: boolean;

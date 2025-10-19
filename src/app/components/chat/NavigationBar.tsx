@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Folder, Plus, Bell, Settings, User, ChevronRight } from 'lucide-react';
+import { Folder, Plus } from 'lucide-react';
 import { useNavigation } from '@/app/hook/useNavigation';
 import localStorageService from '@/app/services/localStorageService';
 
@@ -13,7 +13,6 @@ interface NavigationBarProps {
 export default function NavigationBar({
                                           sidebarOpen,
                                           toggleSidebar,
-                                          handleUserButtonClick,
                                           userInitial
                                       }: NavigationBarProps) {
     const [userMenuOpen, setUserMenuOpen] = useState(false);

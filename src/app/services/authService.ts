@@ -1,7 +1,8 @@
 // authService.ts
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/app/lib/firebase'; // Necesitas crear este archivo
-import { RegisterResponse, LoginResponse } from '@/app/types/auth';
+import { RegisterResponse } from '@/app/types/auth';
+import { FirebaseError } from 'firebase/app';
 
 export const registerUser = async (
     name: string,
@@ -35,13 +36,13 @@ export const registerUser = async (
             }
         };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error en registro:', error);
 
         // Manejar errores específicos de Firebase
         let errorMessage = 'Error en el registro';
 
-        if (error.code) {
+        if (error instanceof FirebaseError) {
             switch (error.code) {
                 case 'auth/email-already-in-use':
                     errorMessage = 'Este email ya está registrado';
@@ -58,6 +59,9 @@ export const registerUser = async (
                 default:
                     errorMessage = error.message || errorMessage;
             }
+        } else if (error instanceof Error) {
+            // Manejar otros tipos de errores que no sean de Firebase
+            errorMessage = error.message;
         }
 
         throw new Error(errorMessage);
@@ -104,13 +108,12 @@ export const loginUser = async (
             }
         };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error en login:', error);
 
-        // Manejar errores específicos de Firebase
         let errorMessage = 'Error al iniciar sesión';
 
-        if (error.code) {
+        if (error instanceof FirebaseError) {
             switch (error.code) {
                 case 'auth/wrong-password':
                     errorMessage = 'Contraseña incorrecta';
@@ -133,6 +136,8 @@ export const loginUser = async (
                 default:
                     errorMessage = error.message || errorMessage;
             }
+        } else if (error instanceof Error) {
+            errorMessage = error.message;
         }
 
         throw new Error(errorMessage);

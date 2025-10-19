@@ -57,9 +57,15 @@ export default function LoginForm() {
                 goToDashboard();
             }, 2000);
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error en login:', error);
-            setError(error.message || 'Error al iniciar sesión');
+
+            // Type guard to safely access error properties
+            const errorMessage = error instanceof Error
+                ? error.message
+                : 'Error al iniciar sesión';
+
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

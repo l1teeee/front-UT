@@ -60,7 +60,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                 simulateAIResponse();
             }, 500);
         }
-    }, [initialMessage, isOpen]);
+    }, [initialMessage, isOpen, messages.length]);
 
     // Resetear estado cuando se cierra el modal
     useEffect(() => {

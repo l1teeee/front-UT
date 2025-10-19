@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigation } from '@/app/hook/useNavigation';
 import localStorageService from '@/app/services/localStorageService';
+import {RoutePath} from "@/app/config/routes";
 
 interface UseProtectedRouteOptions {
     redirectTo?: string;
@@ -39,14 +40,14 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
                 // Si requiere autenticación y no está autenticado
                 if (requireAuth && !authenticated) {
                     console.log('Usuario no autenticado, redirigiendo a:', redirectTo);
-                    navigateTo(redirectTo as any);
+                    navigateTo(redirectTo as RoutePath);
                     return;
                 }
 
                 // Si no requiere autenticación pero está autenticado (ej: páginas de login)
                 if (!requireAuth && authenticated) {
                     console.log('Usuario ya autenticado, redirigiendo a dashboard');
-                    navigateTo('/pages/dashboard' as any);
+                    navigateTo('/pages/dashboard' as RoutePath);
                     return;
                 }
 
@@ -57,7 +58,7 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
                 setIsLoading(false);
 
                 if (requireAuth) {
-                    navigateTo(redirectTo as any);
+                    navigateTo(redirectTo as RoutePath);
                 }
             }
         };

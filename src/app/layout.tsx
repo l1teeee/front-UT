@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-    title: 'Mi App Next.js',
-    description: 'Aplicación con Router Provider',
+    title: 'UT',
+    description: 'Gemini Provider',
 };
 
 export default function RootLayout({

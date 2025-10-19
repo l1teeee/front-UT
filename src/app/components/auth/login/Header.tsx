@@ -1,6 +1,6 @@
 'use client';
 
-import {Sparkles, Terminal} from 'lucide-react';
+import {Sparkles} from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 export default function Header() {

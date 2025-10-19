@@ -67,9 +67,14 @@ export default function RegisterForm() {
                 // window.location.href = '/dashboard';
             }, 2000);
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error en registro:', error);
-            setError(error.message || 'Error al registrar usuario');
+
+            const errorMessage = error instanceof Error
+                ? error.message
+                : 'Error al registrar usuario';
+
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

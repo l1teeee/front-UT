@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface ChatInputProps {
     onSendMessage?: (message: string) => void;
@@ -23,6 +23,7 @@ export default function ChatInput({ onSendMessage }: ChatInputProps) {
         return 'buenas noches, julian';
     };
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const subtitles = [
         '¿en qué te puedo ayudar?',
         '¿qué necesitas saber?',
