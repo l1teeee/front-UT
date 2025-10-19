@@ -6,6 +6,7 @@ interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
     onNewChat?: () => void;
+    onSelectConversation?: (conversationId: string) => void; // Nueva prop
 }
 
 interface Conversation {
@@ -19,7 +20,7 @@ interface Conversation {
     uid: string;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onNewChat, onSelectConversation }: SidebarProps) {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         setError(null);
 
         try {
-            const response = await fetch(`http://localhost:5000/conversations?uid=${user.uid}`);
+            const response = await fetch(`https://api-ut.onrender.com/conversations?uid=${user.uid}`);
             const data = await response.json();
 
             if (data.success) {
@@ -83,6 +84,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         return `${diffInWeeks}w`;
     };
 
+    // Manejar click en conversación
+    const handleConversationClick = (conversationId: string) => {
+        console.log('Conversación seleccionada:', conversationId);
+        onSelectConversation?.(conversationId);
+        onClose(); // Cerrar el sidebar después de seleccionar
+    };
+
+    // Manejar nueva conversación
+    const handleNewChat = () => {
+        onNewChat?.();
+        onClose(); // Cerrar el sidebar
+    };
+
     return (
         <>
             {/* Overlay */}
@@ -119,7 +133,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     {/* Botón nueva conversación */}
                     <div className="p-4">
                         <button
-                            onClick={onClose}
+                            onClick={handleNewChat}
                             className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-white/80 px-3 py-2 rounded-lg transition-colors border border-white/10 backdrop-blur-sm shadow-md"
                         >
                             <Plus size={18} />
@@ -154,6 +168,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                                 {conversations.map((conv) => (
                                     <div
                                         key={conv.conversation_id}
+                                        onClick={() => handleConversationClick(conv.conversation_id)}
                                         className="p-3 hover:bg-white/5 rounded-lg cursor-pointer group backdrop-blur-sm transition-colors"
                                     >
                                         <div className="flex items-center space-x-3">

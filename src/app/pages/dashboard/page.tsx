@@ -15,6 +15,7 @@ function DashboardContent() {
     const [hasStartedChat, setHasStartedChat] = useState(false);
     const [chatModalOpen, setChatModalOpen] = useState(false);
     const [initialMessage, setInitialMessage] = useState('');
+    const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
 
     // Obtener datos del usuario autenticado
     const user = localStorageService.getUser();
@@ -33,26 +34,45 @@ function DashboardContent() {
         // Aquí podrías abrir un menú de usuario, mostrar perfil, etc.
     };
 
+    // Resetear completamente el chat (nueva conversación)
     const resetChat = () => {
         setHasStartedChat(false);
         setChatModalOpen(false);
         setInitialMessage('');
+        setSelectedConversationId(undefined);
     };
 
+    // Cerrar modal sin resetear (minimizar)
     const closeChatModal = () => {
         setChatModalOpen(false);
     };
 
+    // Manejar nueva conversación desde el sidebar
+    const handleNewChat = () => {
+        setSelectedConversationId(undefined);
+        setInitialMessage('');
+        setHasStartedChat(false);
+        setChatModalOpen(true);
+    };
+
+    // Manejar selección de conversación existente desde el sidebar
+    const handleSelectConversation = (conversationId: string) => {
+        console.log('Conversación seleccionada:', conversationId);
+        setSelectedConversationId(conversationId);
+        setInitialMessage('');
+        setHasStartedChat(true);
+        setChatModalOpen(true);
+    };
+
+    // Manejar mensaje desde ChatInput (nueva conversación)
     const handleSendMessage = (message: string) => {
         console.log('Mensaje recibido:', message);
 
-        // Primer mensaje - abrir modal
-        if (!hasStartedChat) {
-            setInitialMessage(message);
-            setHasStartedChat(true);
-            setChatModalOpen(true);
-            return;
-        }
+        // Primer mensaje desde ChatInput - crear nueva conversación
+        setInitialMessage(message);
+        setSelectedConversationId(undefined); // Asegurar que es nueva conversación
+        setHasStartedChat(true);
+        setChatModalOpen(true);
     };
 
     return (
@@ -96,7 +116,13 @@ function DashboardContent() {
                 }}
             />
 
-            <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} onNewChat={resetChat} />
+            {/* Sidebar con funcionalidad completa */}
+            <Sidebar
+                isOpen={sidebarOpen}
+                onClose={closeSidebar}
+                onNewChat={handleNewChat}
+                onSelectConversation={handleSelectConversation}
+            />
 
             <motion.div
                 className="flex-1 flex flex-col relative h-full overflow-hidden"
@@ -123,12 +149,13 @@ function DashboardContent() {
                 </motion.div>
             </motion.div>
 
-            {/* Modal de Chat */}
+            {/* Modal de Chat con funcionalidad completa */}
             <ChatModal
                 isOpen={chatModalOpen}
                 onClose={closeChatModal}
                 onReset={resetChat}
                 initialMessage={initialMessage}
+                existingConversationId={selectedConversationId}
             />
         </motion.div>
     );

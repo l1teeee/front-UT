@@ -17,14 +17,16 @@ interface ChatModalProps {
     onClose: () => void;
     onReset: () => void;
     initialMessage?: string;
+    existingConversationId?: string; // Nueva prop para cargar conversación existente
 }
 
-export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: ChatModalProps) {
+export default function ChatModal({ isOpen, onClose, onReset, initialMessage, existingConversationId }: ChatModalProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,9 +53,63 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
         };
     }, []);
 
-    // Efecto para manejar el mensaje inicial
+    // Función para cargar conversación existente
+    const loadExistingConversation = async (convId: string) => {
+        if (!user?.uid) {
+            setError('Usuario no autenticado');
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            console.log('Cargando conversación:', convId);
+
+            const response = await fetch(`https://api-ut.onrender.com/conversations/${convId}?uid=${user.uid}`);
+            const data = await response.json();
+
+            if (data.success && data.conversation) {
+                const conversation = data.conversation;
+                setConversationId(convId);
+
+                // Convertir mensajes al formato del modal
+                const loadedMessages: Message[] = conversation.messages.map((msg: any) => ({
+                    id: msg.id || `${msg.timestamp}_${msg.role}`,
+                    text: msg.content,
+                    sender: msg.role === 'user' ? 'user' as const : 'ai' as const,
+                    timestamp: new Date(msg.timestamp)
+                }));
+
+                setMessages(loadedMessages);
+                console.log('Conversación cargada:', {
+                    id: convId,
+                    title: conversation.title,
+                    messageCount: loadedMessages.length
+                });
+
+            } else {
+                setError(data.error || 'Error al cargar la conversación');
+            }
+
+        } catch (error) {
+            console.error('Error cargando conversación:', error);
+            setError('Error de conexión al cargar la conversación');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Efecto para manejar conversación existente o mensaje inicial
     useEffect(() => {
-        if (initialMessage && messages.length === 0 && isOpen && user?.uid) {
+        if (!isOpen) return;
+
+        // Si hay una conversación existente para cargar
+        if (existingConversationId && user?.uid) {
+            loadExistingConversation(existingConversationId);
+        }
+        // Si hay un mensaje inicial para nueva conversación
+        else if (initialMessage && messages.length === 0 && user?.uid && !existingConversationId) {
             const userMessage: Message = {
                 id: Date.now().toString() + '_user',
                 text: initialMessage,
@@ -64,7 +120,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
             setMessages([userMessage]);
             sendToClaudeAPI(initialMessage);
         }
-    }, [initialMessage, isOpen, messages.length, user?.uid]);
+    }, [existingConversationId, initialMessage, isOpen, user?.uid]);
 
     // Resetear estado cuando se cierra el modal
     useEffect(() => {
@@ -72,8 +128,9 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
             setMessages([]);
             setInputValue('');
             setIsTyping(false);
-            setConversationId(null); // Nueva conversación cada vez que se abre
+            setConversationId(null);
             setError(null);
+            setLoading(false);
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
@@ -110,7 +167,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
 
             console.log('Enviando a Claude API:', requestBody);
 
-            const response = await fetch('http://localhost:5000/chat', {
+            const response = await fetch('https://api-ut.onrender.com/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -221,10 +278,13 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                         <span className="text-white text-sm font-bold">AI</span>
                                     </div>
                                     <div>
-                                        <h2 className="text-white font-medium">Conversación con Claude</h2>
+                                        <h2 className="text-white font-medium">
+                                            {existingConversationId ? 'Conversación' : 'Nueva Conversación'} con Claude
+                                        </h2>
                                         {conversationId && (
                                             <p className="text-xs text-zinc-400">
-                                                {messages.length > 0 ? 'Conversación activa' : 'Nueva conversación'}
+                                                {existingConversationId ? 'Conversación cargada' :
+                                                    messages.length > 0 ? 'Conversación activa' : 'Nueva conversación'}
                                             </p>
                                         )}
                                     </div>
@@ -251,6 +311,13 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                             {error && (
                                 <div className="mx-4 mt-4 p-3 bg-red-900/50 border border-red-700/50 rounded-lg">
                                     <p className="text-red-300 text-sm">{error}</p>
+                                </div>
+                            )}
+
+                            {/* Loading Message */}
+                            {loading && (
+                                <div className="mx-4 mt-4 p-3 bg-blue-900/50 border border-blue-700/50 rounded-lg">
+                                    <p className="text-blue-300 text-sm">Cargando conversación...</p>
                                 </div>
                             )}
 
@@ -322,7 +389,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                         onKeyPress={handleKeyPress}
                                         onInput={handleTextareaResize}
                                         placeholder={user?.uid ? "Escribe tu mensaje..." : "Inicia sesión para chatear"}
-                                        disabled={!user?.uid || isTyping}
+                                        disabled={!user?.uid || isTyping || loading}
                                         className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-3 pr-12 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                         style={{
                                             lineHeight: '1.5',
@@ -341,7 +408,7 @@ export default function ChatModal({ isOpen, onClose, onReset, initialMessage }: 
                                             <Square size={16} />
                                         </button>
                                     ) : (
-                                        inputValue.trim() && user?.uid && (
+                                        inputValue.trim() && user?.uid && !loading && (
                                             <button
                                                 onClick={handleSendMessage}
                                                 className="absolute right-3 bottom-3 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors"
